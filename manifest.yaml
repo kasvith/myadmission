@@ -1,0 +1,80 @@
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: myadmission
+  namespace: default
+  labels:
+    name: myadmission
+spec:
+  ports:
+  - name: webhook
+    port: 443
+    targetPort: 8080
+  selector:
+    name: myadmission 
+---
+apiVersion: apps/v1beta1
+kind: Deployment
+metadata:
+  name: myadmission
+  namespace: default
+  labels:
+    name: myadmission
+spec:
+  replicas: 1
+  template:
+    metadata:
+      name: myadmission 
+      labels:
+        name: myadmission
+    spec:
+      containers:
+        - name: webhook
+          image: kasvith/myadmission:1.0.0
+          imagePullPolicy: IfNotPresent
+          args:
+            - -alsologtostderr
+            - --log_dir=/
+            - -v=10
+            - 2>&1
+          resources:
+            limits:
+              memory: 50Mi
+              cpu: 300m
+            requests:
+              memory: 00Mi
+              cpu: 300m
+          volumeMounts:
+            - name: webhook-certs
+              mountPath: /etc/certs
+              readOnly: true
+            - name: logs
+              mountPath: /tmp
+          securityContext:
+            readOnlyRootFilesystem: true
+      volumes:
+        - name: webhook-certs
+          secret:
+            secretName: myadmission
+        - name: logs
+          emptyDir: {}
+---
+apiVersion: admissionregistration.k8s.io/v1beta1
+kind: ValidatingWebhookConfiguration
+metadata:
+  name: myadmission
+webhooks:
+  - name: myadmission.kasvith.io
+    clientConfig:
+      service:
+        name: myadmission
+        namespace: default
+        path: "/validate"
+      caBundle: "LS0tLS1CRUdJTiBDRVJUSUZJQ0FURS0tLS0tCk1JSUQwakNDQXJvQ0NRREljclJJOHpEUFZEQU5CZ2txaGtpRzl3MEJBUTBGQURDQnFqRUxNQWtHQTFVRUJoTUMKVEVzeEVEQU9CZ05WQkFnTUIwTnZiRzl0WW04eEVEQU9CZ05WQkFjTUIwTnZiRzl0WW04eER6QU5CZ05WQkJFTQpCalF3TkRBME1ERU9NQXdHQTFVRUNRd0ZNakFnVUVjeERUQUxCZ05WQkFvTUJIZHpiekl4RWpBUUJnTlZCQXNNCkNVRlFTVTBnVkdWaGJURVJNQThHQTFVRUF3d0lkM052TWk1amIyMHhJREFlQmdrcWhraUc5dzBCQ1FFV0VXNXYKTFhKbGNHeDVRSGR6YnpJdVkyOXRNQjRYRFRFNU1EVXdPVEF6TlRBME5Wb1hEVEU1TURZd09EQXpOVEEwTlZvdwpnYW94Q3pBSkJnTlZCQVlUQWt4TE1SQXdEZ1lEVlFRSURBZERiMnh2YldKdk1SQXdEZ1lEVlFRSERBZERiMnh2CmJXSnZNUTh3RFFZRFZRUVJEQVkwTURRd05EQXhEakFNQmdOVkJBa01CVEl3SUZCSE1RMHdDd1lEVlFRS0RBUjMKYzI4eU1SSXdFQVlEVlFRTERBbEJVRWxOSUZSbFlXMHhFVEFQQmdOVkJBTU1DSGR6YnpJdVkyOXRNU0F3SGdZSgpLb1pJaHZjTkFRa0JGaEZ1YnkxeVpYQnNlVUIzYzI4eUxtTnZiVENDQVNJd0RRWUpLb1pJaHZjTkFRRUJCUUFECmdnRVBBRENDQVFvQ2dnRUJBTVNvdGR1ZURJd25FKzBJcE5QRmJxZ3RKNkVIWXp3UFllcElCMFlPNktIOVB3NzMKcHd5OEJhOG0wak5memk0blN0YjZpQndZNDFqOWh5Tnd2Z2UwZXBNQmNIRVhJN0NLbUpoL3BSNVdTdnJXR2lhagpwYUtSZTRzTG4rcFhFa2RrcFFTZFQyb2NZVE5lNmtjeE82b1VnK3JEOWdveXdjdTkvc3VBMU4zSTVWVkR2ejdTCm02eGR1TTB2dTNKL2pVa2M0Q0xHYjRzSFIyY2FqVVllSGEzQ0FOZlpIMFNmUERJSDZza3NxbW00Wk4wSmp1dUYKOC93Uk5zZXg0QTNvWm5Gc0t5eU9tTjEwSUREU09PUEZHOS85NHl5cDNDMTVwNXdDVGNrOUFGSXp2YTdpb0xXaApoNTBHMG5FQWNnY1NSa1FqZzlVcm5tTVk2YnIyNlZMZ1gxM0h5L0VDQXdFQUFUQU5CZ2txaGtpRzl3MEJBUTBGCkFBT0NBUUVBZUcxcmRSd0FMdk90aEJXTHczcytsUFZHZ0dPWit3S08yWTdRVTVkbVVNUVNpM3FsOFRHNUFjYUYKZkpTdSs1RU5QR3A1RVVQd1JZOGdxYUJCNHdmM1hHTHVkRGhLT2NoSlp4aWcwYWZ4bVB0YzhieHRMMmZCd2dRUwpOMUJsSzBOVEpzam80dU8wRU1ReCtLeVVKdU5Jc1BZQW42b3VoaTM4K1RyQUFWelBaTVNYM0ZoWDJVZ01zUks3ClM1Nm03NFNndW0wRzBvQkk5dHdNYzRZS3VKdHI4eGdUUE8yUWRTdDdmMGxKQVhVRFZwWUphSkQvSURWbzFQcjkKaU0xaUJyRXFzYXUxN0JpM3Nja3dDSnVhOXRLcVo4TW5NTm95dVhLU21pbVZ0QUQxNXBTN1BTcEd2ajQ5NUtLcApGbFVlcGx6bVlzYkJOQzF4VHhXSlJlMmhBU01aUFE9PQotLS0tLUVORCBDRVJUSUZJQ0FURS0tLS0tCg=="
+    rules:
+      - operations: ["CREATE","UPDATE"]
+        apiGroups: [""]
+        apiVersions: ["v1"]
+        resources: ["mykinds"]
+    failurePolicy: Ignore

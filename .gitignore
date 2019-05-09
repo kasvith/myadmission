@@ -1,0 +1,7 @@
+.idea
+*.csr
+*.crt
+*.pem
+*.srl
+*.key
+vendor
